@@ -1,0 +1,47 @@
+version: "3.8"
+
+services:
+    php:
+        container_name: php-fpm
+        platform: linux/arm64/v8
+        build:
+            context: ./../
+            dockerfile: ./docker/php-fpm/8.1/Dockerfile
+            args:
+                - PUID=${PUID}
+                - PGID=${PGID}
+                - INSTALL_XDEBUG=${INSTALL_XDEBUG}
+        environment:
+            PHP_IDE_CONFIG: "serverName=Docker"
+        volumes:
+            - /var/www/vendor/
+            - ./../:/var/www/
+        networks:
+            - cur-spot-network
+
+    db:
+        container_name: postgres
+        image: 'postgres:alpine3.18'
+        platform: linux/arm64/v8
+        ports:
+            - '${POSTGRES_PORT:-5432}:5432'
+        environment:
+            POSTGRES_DB: '${POSTGRES_DB}'
+            POSTGRES_USER: '${POSTGRES_USER}'
+            POSTGRES_PASSWORD: '${POSTGRES_PASSWORD:-secret}'
+        volumes:
+            - 'cur-spot-pgsql:/var/lib/postgresql/data'
+        networks:
+            - cur-spot-network
+        healthcheck:
+            test: [ "CMD", "pg_isready", "-q", "-d", "${POSTGRES_DB}", "-U", "${POSTGRES_USER}" ]
+            retries: 3
+            timeout: 5s
+
+networks:
+    cur-spot-network:
+        driver: bridge
+
+volumes:
+    cur-spot-pgsql:
+        driver: local
